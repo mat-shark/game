@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拳王对战 - 挑战你的对手！</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        header {
+            background-color: #e63946;
+            color: white;
+            padding: 20px;
+        }
+        #character-select {
+            margin: 20px;
+        }
+        #character-select select {
+            padding: 5px;
+            font-size: 16px;
+        }
+        #game-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        canvas {
+            border: 2px solid #1d3557;
+            background-color: #a8dadc;
+        }
+        #controls {
+            margin: 10px;
+        }
+        footer {
+            background-color: #1d3557;
+            color: white;
+            padding: 10px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>拳王对战</h1>
+        <p>选择你的角色，挑战对手，成为拳王！</p>
+    </header>
+
+    <div id="character-select">
+        <label for="character">选择你的角色：</label>
+        <select id="character" onchange="startGame()">
+            <option value="fighter">强壮拳手</option>
+            <option value="thief">猥琐小偷</option>
+        </select>
+    </div>
+
+    <div id="game-container">
+        <canvas id="game-canvas" width="800" height="400"></canvas>
+        <div id="controls">
+            <p>移动：A（左）/ D（右） | 跳跃：W | 蹲下：S</p>
+            <p>技能：1（打拳）/ 2（扫腿）/ 3（后空翻）/ 4（过肩摔）</p>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 邹子居 | 灵感来源于经典拳击游戏</p>
+    </footer>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 角色数据
+        const characters = {
+            fighter: {
+                name: '强壮拳手',
+                height: 100,
+                speed: 5,
+                jumpHeight: 100,
+                health: 100,
+                skills: { punch: 10, kick: 15, backflip: 5, throw: 20 }
+            },
+            thief: {
+                name: '猥琐小偷',
+                height: 60, // 矮，难以击中
+                speed: 7,
+                jumpHeight: 80,
+                health: 80,
+                skills: { punch: 8, kick: 12, backflip: 10, throw: 15 }
+            }
+        };
+
+        // 游戏状态
+        let player = { ...characters.fighter, x: 100, y: 300, health: 100, isJumping: false, isCrouching: false };
+        let opponent = { ...characters.fighter, x: 600, y: 300, health: 100, isJumping: false, isCrouching: false };
+        let gameOver = false;
+
+        // 键盘输入
+        const keys = {};
+        window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+
+        // 选择角色并开始游戏
+        function startGame() {
+            const selectedCharacter = document.getElementById('character').value;
+            player = { ...characters[selectedCharacter], x: 100, y: 300, health: characters[selectedCharacter].health, isJumping: false, isCrouching: false };
+            opponent = { ...characters.fighter, x: 600, y: 300, health: 100, isJumping: false, isCrouching: false }; // 对手固定为强壮拳手
+            gameOver = false;
+            gameLoop();
+        }
+
+        // 游戏主循环
+        function gameLoop() {
+            if (gameOver) return;
+
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 玩家控制
+            if (keys['a'] && player.x > 0) player.x -= player.speed;
+            if (keys['d'] && player.x < canvas.width - 50) player.x += player.speed;
+            if (keys['w'] && !player.isJumping) {
+                player.isJumping = true;
+                player.y -= player.jumpHeight;
+                setTimeout(() => {
+                    player.y = 300;
+                    player.isJumping = false;
+                }, 500);
+            }
+            if (keys['s']) {
+                player.isCrouching = true;
+            } else {
+                player.isCrouching = false;
+            }
+
+            // 技能攻击
+            let damage = 0;
+            if (keys['1']) damage = player.skills.punch;
+            if (keys['2']) damage = player.skills.kick;
+            if (keys['3']) damage = player.skills.backflip;
+            if (keys['4']) damage = player.skills.throw;
+
+            if (damage > 0) {
+                // 计算攻击距离
+                const distance = Math.abs(player.x - opponent.x);
+                if (distance < 100 && !opponent.isCrouching && !opponent.isJumping) {
+                    opponent.health -= damage;
+                    if (opponent.health <= 0) {
+                        alert('你赢了！对手被击败！');
+                        gameOver = true;
+                    }
+                }
+            }
+
+            // 对手简单AI
+            if (Math.random() < 0.02) opponent.isJumping = true;
+            if (opponent.isJumping) {
+                opponent.y -= 5;
+                if (opponent.y < 200) opponent.isJumping = false;
+            } else if (opponent.y < 300) {
+                opponent.y += 5;
+            }
+            if (Math.random() < 0.01) {
+                const aiDamage = opponent.skills[Math.random() > 0.5 ? 'punch' : 'kick'];
+                const distance = Math.abs(player.x - opponent.x);
+                if (distance < 100 && !player.isCrouching && !player.isJumping) {
+                    player.health -= aiDamage;
+                    if (player.health <= 0) {
+                        alert('你输了！游戏结束！');
+                        gameOver = true;
+                    }
+                }
+            }
+
+            // 绘制角色
+            ctx.fillStyle = '#e63946';
+            ctx.fillRect(player.x, player.y - (player.isCrouching ? player.height / 2 : player.height), 50, player.isCrouching ? player.height / 2 : player.height);
+            ctx.fillStyle = '#1d3557';
+            ctx.fillRect(opponent.x, opponent.y - opponent.height, 50, opponent.height);
+
+            // 绘制生命值
+            ctx.fillStyle = 'black';
+            ctx.font = '20px Arial';
+            ctx.fillText(`${player.name} 生命值: ${Math.max(0, player.health)}`, 20, 30);
+            ctx.fillText(`对手 生命值: ${Math.max(0, opponent.health)}`, canvas.width - 150, 30);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 初始化游戏
+        startGame();
+    </script>
+</body>
+</html>
